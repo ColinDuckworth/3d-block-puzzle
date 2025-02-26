@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Sliding Block Puzzle</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        h1 {
+            margin-bottom: 20px;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .status {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .puzzle-layers {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .layer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .layer-label {
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .layer {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 5px;
+            background-color: #ddd;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .block {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #3498db;
+            color: white;
+            font-size: 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .block:hover {
+            filter: brightness(1.1);
+        }
+        
+        .empty {
+            background-color: transparent;
+        }
+        
+        .top-layer .block {
+            background-color: #3498db;
+        }
+        
+        .middle-layer .block {
+            background-color: #e74c3c;
+        }
+        
+        .bottom-layer .block {
+            background-color: #2ecc71;
+        }
+        
+        /* Adjacent block styling */
+        .top-adjacent {
+            border-bottom: 5px solid #e74c3c;
+        }
+        
+        .middle-adjacent-top {
+            border-top: 5px solid #3498db;
+        }
+        
+        .middle-adjacent-bottom {
+            border-bottom: 5px solid #2ecc71;
+        }
+        
+        .bottom-adjacent {
+            border-top: 5px solid #e74c3c;
+        }
+        
+        /* 3D Visualization */
+        .visualization {
+            margin-top: 40px;
+            position: relative;
+            width: 300px;
+            height: 300px;
+            perspective: 1200px;
+        }
+        
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(-20deg) rotateY(-30deg);
+        }
+        
+        .cube-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 2px;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .cube-block {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        /* Transform each face */
+        .front {
+            transform: translateZ(150px);
+        }
+        
+        .back {
+            transform: rotateY(180deg) translateZ(150px);
+        }
+        
+        .right {
+            transform: rotateY(90deg) translateZ(150px);
+        }
+        
+        .left {
+            transform: rotateY(-90deg) translateZ(150px);
+        }
+        
+        .top {
+            transform: rotateX(90deg) translateZ(150px);
+        }
+        
+        .bottom {
+            transform: rotateX(-90deg) translateZ(150px);
+        }
+        
+        .moves-counter {
+            margin-top: 15px;
+            font-size: 18px;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 950px) {
+            .puzzle-layers {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>3D Sliding Block Puzzle</h1>
+    
+    <div class="game-container">
+        <div class="controls">
+            <button id="shuffle-btn">Shuffle</button>
+            <button id="reset-btn">Reset</button>
+        </div>
+        
+        <div class="status" id="status">Arrange the blocks in numerical order</div>
+        <div class="moves-counter" id="moves-counter">Moves: 0</div>
+        
+        <div class="puzzle-layers">
+            <div class="layer-container">
+                <div class="layer-label">Top Layer (1-9)</div>
+                <div class="layer top-layer" id="layer-0"></div>
+            </div>
+            
+            <div class="layer-container">
+                <div class="layer-label">Middle Layer (10-18)</div>
+                <div class="layer middle-layer" id="layer-1"></div>
+            </div>
+            
+            <div class="layer-container">
+                <div class="layer-label">Bottom Layer (19-26)</div>
+                <div class="layer bottom-layer" id="layer-2"></div>
+            </div>
+        </div>
+        
+        <div class="visualization">
+            <div class="cube" id="viz-cube">
+                <!-- Faces will be generated by JavaScript -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Game state
+            const size = 3;
+            const totalSize = size * size * size;
+            const emptyIndex = totalSize - 1; // Last position is empty
+            let moveCount = 0;
+            
+            // Game state representation
+            // 3D array to represent the 3x3x3 grid
+            let grid = Array(size).fill().map(() => 
+                Array(size).fill().map(() => 
+                    Array(size).fill(0)
+                )
+            );
+            
+            // 1D array to keep track of the current state for easier manipulation
+            let currentState = Array(totalSize).fill(0).map((_, i) => i);
+            
+            // Original state for reset functionality
+            const originalState = [...currentState];
+            
+            // DOM elements
+            const layers = [
+                document.getElementById('layer-0'),
+                document.getElementById('layer-1'),
+                document.getElementById('layer-2')
+            ];
+            
+            const statusEl = document.getElementById('status');
+            const movesCounterEl = document.getElementById('moves-counter');
+            const shuffleBtn = document.getElementById('shuffle-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const vizCube = document.getElementById('viz-cube');
+            
+            // Initialize the puzzle
+            function initPuzzle() {
+                // Clear existing content
+                layers.forEach(layer => layer.innerHTML = '');
+                
+                // Convert 1D array to 3D grid
+                for (let i = 0; i < totalSize; i++) {
+                    const value = currentState[i];
+                    const [z, y, x] = indexTo3D(i);
+                    grid[z][y][x] = value;
+                }
+                
+                // Render each layer
+                for (let z = 0; z < size; z++) {
+                    for (let y = 0; y < size; y++) {
+                        for (let x = 0; x < size; x++) {
+                            const value = grid[z][y][x];
+                            const blockEl = document.createElement('div');
+                            const position = {z, y, x};
+                            const index = threeDTO1D(z, y, x);
+                            
+                            blockEl.className = 'block';
+                            blockEl.dataset.position = JSON.stringify(position);
+                            blockEl.dataset.index = index;
+                            
+                            // Empty block
+                            if (value === emptyIndex) {
+                                blockEl.classList.add('empty');
+                                blockEl.textContent = '';
+                            } else {
+                                blockEl.textContent = value + 1; // Display 1-26 instead of 0-25
+                                
+                                // Add adjacency markers
+                                if (z === 0) {
+                                    blockEl.classList.add('top-adjacent');
+                                } else if (z === 1) {
+                                    blockEl.classList.add('middle-adjacent-top');
+                                    blockEl.classList.add('middle-adjacent-bottom');
+                                } else if (z === 2) {
+                                    blockEl.classList.add('bottom-adjacent');
+                                }
+                            }
+                            
+                            // Add click event
+                            blockEl.addEventListener('click', () => handleBlockClick(position));
+                            
+                            layers[z].appendChild(blockEl);
+                        }
+                    }
+                }
+                
+                // Update the 3D visualization
+                updateVisualization();
+                
+                // Check if the puzzle is solved
+                checkSolution();
+            }
+            
+            // Convert 1D index to 3D coordinates
+            function indexTo3D(index) {
+                const z = Math.floor(index / (size * size));
+                const remainder = index % (size * size);
+                const y = Math.floor(remainder / size);
+                const x = remainder % size;
+                return [z, y, x];
+            }
+            
+            // Convert 3D coordinates to 1D index
+            function threeDTO1D(z, y, x) {
+                return z * size * size + y * size + x;
+            }
+            
+            // Handle block click
+            function handleBlockClick(position) {
+                const {z, y, x} = position;
+                const currentIndex = threeDTO1D(z, y, x);
+                
+                // Find the empty block
+                let emptyPos;
+                for (let i = 0; i < size; i++) {
+                    for (let j = 0; j < size; j++) {
+                        for (let k = 0; k < size; k++) {
+                            if (grid[i][j][k] === emptyIndex) {
+                                emptyPos = {z: i, y: j, x: k};
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                // Check if the clicked block is adjacent to the empty block
+                if (isAdjacent(position, emptyPos)) {
+                    // Swap the blocks
+                    const emptyIdx = threeDTO1D(emptyPos.z, emptyPos.y, emptyPos.x);
+                    const temp = currentState[currentIndex];
+                    currentState[currentIndex] = currentState[emptyIdx];
+                    currentState[emptyIdx] = temp;
+                    
+                    // Update move counter
+                    moveCount++;
+                    movesCounterEl.textContent = `Moves: ${moveCount}`;
+                    
+                    // Re-render the puzzle
+                    initPuzzle();
+                }
+            }
+            
+            // Check if two positions are adjacent
+            function isAdjacent(pos1, pos2) {
+                // Check if they differ by exactly one position and only by 1
+                const zDiff = Math.abs(pos1.z - pos2.z);
+                const yDiff = Math.abs(pos1.y - pos2.y);
+                const xDiff = Math.abs(pos1.x - pos2.x);
+                
+                // Adjacent if: only one dimension differs, and it differs by exactly 1
+                return (
+                    (zDiff === 1 && yDiff === 0 && xDiff === 0) ||
+                    (zDiff === 0 && yDiff === 1 && xDiff === 0) ||
+                    (zDiff === 0 && yDiff === 0 && xDiff === 1)
+                );
+            }
+            
+            // Shuffle the puzzle with valid moves
+            function shufflePuzzle() {
+                // Reset to ordered state first
+                resetPuzzle();
+                
+                // Perform a large number of random valid moves
+                const numMoves = 200; // large enough to ensure a good shuffle
+                
+                for (let i = 0; i < numMoves; i++) {
+                    // Find the empty block
+                    let emptyPos;
+                    for (let z = 0; z < size; z++) {
+                        for (let y = 0; y < size; y++) {
+                            for (let x = 0; x < size; x++) {
+                                if (grid[z][y][x] === emptyIndex) {
+                                    emptyPos = {z, y, x};
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Get all possible moves (adjacent blocks)
+                    const possibleMoves = [];
+                    const directions = [
+                        {z: 1, y: 0, x: 0},
+                        {z: -1, y: 0, x: 0},
+                        {z: 0, y: 1, x: 0},
+                        {z: 0, y: -1, x: 0},
+                        {z: 0, y: 0, x: 1},
+                        {z: 0, y: 0, x: -1}
+                    ];
+                    
+                    for (const dir of directions) {
+                        const newZ = emptyPos.z + dir.z;
+                        const newY = emptyPos.y + dir.y;
+                        const newX = emptyPos.x + dir.x;
+                        
+                        // Check if position is valid
+                        if (
+                            newZ >= 0 && newZ < size &&
+                            newY >= 0 && newY < size &&
+                            newX >= 0 && newX < size
+                        ) {
+                            possibleMoves.push({z: newZ, y: newY, x: newX});
+                        }
+                    }
+                    
+                    // Pick a random move
+                    if (possibleMoves.length > 0) {
+                        const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                        const randomIndex = threeDTO1D(randomMove.z, randomMove.y, randomMove.x);
+                        const emptyIndex = threeDTO1D(emptyPos.z, emptyPos.y, emptyPos.x);
+                        
+                        // Swap values
+                        const temp = currentState[randomIndex];
+                        currentState[randomIndex] = currentState[emptyIndex];
+                        currentState[emptyIndex] = temp;
+                        
+                        // Update the grid
+                        for (let i = 0; i < totalSize; i++) {
+                            const [z, y, x] = indexTo3D(i);
+                            grid[z][y][x] = currentState[i];
+                        }
+                    }
+                }
+                
+                // Reset move counter
+                moveCount = 0;
+                movesCounterEl.textContent = `Moves: ${moveCount}`;
+                
+                // Re-render the puzzle
+                initPuzzle();
+            }
+            
+            // Reset the puzzle to its original state
+            function resetPuzzle() {
+                currentState = [...originalState];
+                moveCount = 0;
+                movesCounterEl.textContent = `Moves: ${moveCount}`;
+                
+                // Re-init the puzzle
+                initPuzzle();
+            }
+            
+            // Check if the puzzle is solved
+            function checkSolution() {
+                // Check if the current state matches the original state
+                const isSolved = currentState.every((value, index) => value === originalState[index]);
+                
+                if (isSolved) {
+                    statusEl.textContent = 'Puzzle Solved! Congratulations!';
+                    statusEl.style.color = 'green';
+                } else {
+                    statusEl.textContent = 'Arrange the blocks in numerical order';
+                    statusEl.style.color = 'black';
+                }
+                
+                return isSolved;
+            }
+            
+            // Create the 3D visualization
+            function createVisualization() {
+                // Clear existing visualization
+                vizCube.innerHTML = '';
+                
+                // Define the six faces
+                const faces = ['front', 'back', 'right', 'left', 'top', 'bottom'];
+                
+                // Create each face
+                faces.forEach(face => {
+                    const faceEl = document.createElement('div');
+                    faceEl.className = `cube-face ${face}`;
+                    
+                    // Add blocks to the face
+                    for (let i = 0; i < 9; i++) {
+                        const blockEl = document.createElement('div');
+                        blockEl.className = 'cube-block';
+                        blockEl.id = `${face}-block-${i}`;
+                        faceEl.appendChild(blockEl);
+                    }
+                    
+                    vizCube.appendChild(faceEl);
+                });
+            }
+            
+            // Update the 3D visualization based on current state
+            function updateVisualization() {
+                // Get colors from actual blocks
+                const colors = [
+                    '#3498db', // top layer
+                    '#e74c3c', // middle layer
+                    '#2ecc71'  // bottom layer
+                ];
+                
+                // Clear all blocks first
+                document.querySelectorAll('.cube-block').forEach(block => {
+                    block.textContent = '';
+                    block.style.backgroundColor = 'rgba(200, 200, 200, 0.3)';
+                });
+                
+                // Update front face (z=0, all y, all x)
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        const value = grid[0][y][x];
+                        const blockEl = document.getElementById(`front-block-${y * size + x}`);
+                        if (value !== emptyIndex) {
+                            blockEl.textContent = value + 1;
+                            blockEl.style.backgroundColor = colors[0];
+                        }
+                    }
+                }
+                
+                // Update back face (z=2, all y, all x - reversed x)
+                for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                        const value = grid[2][y][size - 1 - x];
+                        const blockEl = document.getElementById(`back-block-${y * size + x}`);
+                        if (value !== emptyIndex) {
+                            blockEl.textContent = value + 1;
+                            blockEl.style.backgroundColor = colors[2];
+                        }
+                    }
+                }
+                
+                // Update right face (all z, all y, x=2)
+                for (let z = 0; z < size; z++) {
+                    for (let y = 0; y < size; y++) {
+                        const value = grid[z][y][2];
+                        const blockEl = document.getElementById(`right-block-${y * size + z}`);
+                        if (value !== emptyIndex) {
+                            blockEl.textContent = value + 1;
+                            blockEl.style.backgroundColor = colors[z];
+                        }
+                    }
+                }
+                
+                // Update left face (all z, all y, x=0 - reversed z)
+                for (let z = 0; z < size; z++) {
+                    for (let y = 0; y < size; y++) {
+                        const value = grid[size - 1 - z][y][0];
+                        const blockEl = document.getElementById(`left-block-${y * size + z}`);
+                        if (value !== emptyIndex) {
+                            blockEl.textContent = value + 1;
+                            blockEl.style.backgroundColor = colors[size - 1 - z];
+                        }
+                    }
+                }
+                
+                // Update top face (all z, y=0, all x - adjusted for orientation)
+                for (let z = 0; z < size; z++) {
+                    for (let x = 0; x < size; x++) {
+                        const value = grid[z][0][x];
+                        const blockEl = document.getElementById(`top-block-${z * size + x}`);
+                        if (value !== emptyIndex) {
+                            blockEl.textContent = value + 1;
+                            blockEl.style.backgroundColor = colors[z];
+                        }
+                    }
+                }
+                
+                // Update bottom face (all z, y=2, all x - adjusted for orientation)
+                for (let z = 0; z < size; z++) {
+                    for (let x = 0; x < size; x++) {
+                        const value = grid[size - 1 - z][2][x];
+                        const blockEl = document.getElementById(`bottom-block-${z * size + x}`);
+                        if (value !== emptyIndex) {
+                            blockEl.textContent = value + 1;
+                            blockEl.style.backgroundColor = colors[size - 1 - z];
+                        }
+                    }
+                }
+            }
+            
+            // Event listeners
+            shuffleBtn.addEventListener('click', shufflePuzzle);
+            resetBtn.addEventListener('click', resetPuzzle);
+            
+            // Initialize the game
+            createVisualization();
+            initPuzzle();
+        });
+    </script>
+</body>
+</html>
